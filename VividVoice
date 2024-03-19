@@ -1,0 +1,86 @@
+
+import assemblyai as aai
+import tweepy
+from transformers import pipeline
+import requests
+import json
+
+# Replace with your API key
+aai.settings.api_key = "f0f88ef5acf941abac3f690500f281aa"
+
+# URL of the file to transcribe
+FILE_URL = "/Users/marjaganesh/Desktop/Hackathon 2023/audio/I Have a Dream speech by Martin Luther King .Jr HD (subtitled).mp3"
+
+# You can also transcribe a local file by passing in a file path
+# FILE_URL = './path/to/file.mp3'
+
+transcriber = aai.Transcriber()
+transcript = transcriber.transcribe(FILE_URL)
+
+if transcript.status == aai.TranscriptStatus.error:
+    print(transcript.error)
+else:
+    print(transcript.text)
+    with open("transcript.txt", "w") as file:
+        file.write(transcript.text)
+
+
+#twitter bot
+
+# Authenticate to Twitter
+auth = tweepy.OAuth1UserHandler(
+    consumer_key="wQDustJNFfn62ZFsFhcj7Q0WU",
+    consumer_secret="ZUIfx5VCgCHKxveQHjGqIT7y2C3A9fIM56t9gdG6piT4zEguSz",
+    access_token="1769100317965131776-aaH3egdXS7Y1Ra5HPUbC3totR4EuYz",
+    access_token_secret="asOOOk1zydkvPWcb4lwfRM3WFaReFfN7iRNQsMctmbt3r"
+)
+
+# prompt: Condense the txt file using Gemma API to 280 characters
+
+
+# Load the text file
+with open("transcript.txt", "r") as f:
+    text = f.read()
+
+# Set the prompt
+prompt = """You are a helpful assistant. Answer any questions I have in a concise way. Be professional. Rewrite the file into a Twitter post length with only specified information.
+
+CONTEXT:
+""" + text
+
+# Set the parameters for the API call
+params = {
+    "model": "google/gemma-7b-it:free",
+    "messages": [
+        {
+            "role": "user",
+            "content": prompt
+        }
+    ],
+    "max_tokens": 280  # Set the maximum length of the generated text
+}
+
+# Make the API call
+response = requests.post(
+    url="https://openrouter.ai/api/v1/chat/completions",
+    headers={
+        "Authorization": f"Bearer {'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'}"
+    },
+    data=json.dumps(params)
+)
+
+# Get the generated text
+generated_text = response.json().get("choices")[0].get('message').get("content")
+
+# Print the generated text
+print("Tweet Options: ")
+print(generated_text)
+print("Sending to Twitter!")
+
+api = tweepy.API(auth)
+
+try:
+  api.update_status(generated_text)
+  print(f"Tweet Posted: {generated_text}")
+except tweepy.TweepError as e:
+  print(f"Error posting Tweet: {e}")
